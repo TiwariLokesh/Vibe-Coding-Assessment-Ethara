@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, func, select
 
 from app.models.allocation import SeatAllocation
 from app.services.repositories.base_repository import BaseRepository
@@ -27,3 +27,15 @@ class AllocationRepository(BaseRepository):
             and_(SeatAllocation.seat_id == seat_id, SeatAllocation.allocation_status == "active")
         )
         return self.session.scalars(statement).first()
+
+    def count_pending(self) -> int:
+        statement = select(func.count()).select_from(SeatAllocation).where(SeatAllocation.allocation_status == "pending")
+        return int(self.session.scalar(statement) or 0)
+
+    def active_by_project(self):
+        statement = (
+            select(SeatAllocation.project_id, func.count(SeatAllocation.id))
+            .where(SeatAllocation.allocation_status == "active")
+            .group_by(SeatAllocation.project_id)
+        )
+        return self.session.execute(statement).all()

@@ -1,0 +1,1 @@
+"""Ethara backend application package."""

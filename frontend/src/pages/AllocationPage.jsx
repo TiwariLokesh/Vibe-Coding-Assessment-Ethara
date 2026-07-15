@@ -215,6 +215,7 @@ function getErrorMessage(error) {
 export default function AllocationPage() {
   const [employees, setEmployees] = useState([])
   const [releaseEmployees, setReleaseEmployees] = useState([])
+  const [releaseAllocations, setReleaseAllocations] = useState([])
   const [seats, setSeats] = useState([])
   const [projects, setProjects] = useState([])
 
@@ -297,6 +298,7 @@ export default function AllocationPage() {
       )
 
       const activeEmployees = []
+      const activeAllocations = []
       const seenEmployeeIds = new Set()
       const normalizedSearch = normalizeSearchValue(value)
 
@@ -330,6 +332,10 @@ export default function AllocationPage() {
         }
 
         seenEmployeeIds.add(employeeId)
+        activeAllocations.push({
+          employee_id: employeeId,
+          seat_id: seatId,
+        })
         activeEmployees.push({
           id: employeeId,
           name: employeeName,
@@ -340,6 +346,7 @@ export default function AllocationPage() {
 
       const sortedEmployees = sortReleaseEmployees(activeEmployees, value).slice(0, 5)
 
+      setReleaseAllocations(activeAllocations)
       setReleaseEmployees(sortedEmployees)
 
       if (sortedEmployees.length === 1) {
@@ -351,6 +358,7 @@ export default function AllocationPage() {
       }
 
     } catch (err) {
+      setReleaseAllocations([])
       setReleaseEmployees([])
       setReleaseError(getReadableErrorMessage(err))
 
@@ -487,8 +495,18 @@ export default function AllocationPage() {
       (employee) => String(employee.id) === String(releaseEmployeeId)
     )
 
-    if (!selectedEmployee?.seat_id) {
-      setReleaseError('No employee with an active seat found.')
+    const resolvedSeatId = Number(
+      selectedEmployee?.seat_id ??
+      releaseAllocations.find(
+        (allocation) => String(allocation.employee_id) === String(releaseEmployeeId)
+      )?.seat_id ??
+      seats.find(
+        (seat) => String(seat.active_employee_id) === String(releaseEmployeeId)
+      )?.id
+    )
+
+    if (!Number.isInteger(resolvedSeatId) || resolvedSeatId <= 0) {
+      setReleaseError('Active seat not found for selected employee.')
       return
     }
 
@@ -498,7 +516,8 @@ export default function AllocationPage() {
       const response = await requestJson('/seats/release', {
         method: 'POST',
         body: JSON.stringify({
-          seat_id: Number(selectedEmployee.seat_id),
+          employee_id: Number(releaseEmployeeId),
+          seat_id: Number(resolvedSeatId),
         }),
       })
 
@@ -510,6 +529,7 @@ export default function AllocationPage() {
       setReleaseEmployeeId('')
       setReleaseSearch('')
       setReleaseEmployees([])
+      setReleaseAllocations([])
       setReleaseError('')
 
       await loadData()
@@ -528,6 +548,7 @@ export default function AllocationPage() {
     setReleaseEmployeeId('')
     setReleaseSearch('')
     setReleaseEmployees([])
+    setReleaseAllocations([])
     setReleaseModalOpen(true)
   }
 
@@ -541,6 +562,7 @@ export default function AllocationPage() {
     setReleaseEmployeeId('')
     setReleaseSearch('')
     setReleaseEmployees([])
+    setReleaseAllocations([])
     setReleaseError('')
   }
 

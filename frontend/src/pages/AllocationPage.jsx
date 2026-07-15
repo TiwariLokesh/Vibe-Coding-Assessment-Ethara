@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { RefreshCcw, ArrowRightLeft, Search } from 'lucide-react'
 
-import { allocateSeat, releaseSeat } from '../api/allocationApi'
+import { allocateSeat } from '../api/allocationApi'
 import { fetchEmployees } from '../api/employeeApi'
 import { fetchAvailableSeats } from '../api/seatApi'
 import { fetchProjects } from '../api/projectApi'
@@ -14,6 +14,11 @@ import EmptyState from '../components/feedback/EmptyState'
 import Modal from '../components/common/Modal'
 
 
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'
+).replace(/\/$/, '')
+
+
 function extractItems(response) {
   const value =
     response?.data?.items ??
@@ -23,6 +28,150 @@ function extractItems(response) {
     []
 
   return Array.isArray(value) ? value : []
+}
+
+
+function extractAllocations(response) {
+  return Array.isArray(response?.allocations)
+    ? response.allocations
+    : []
+}
+
+
+function normalizeSearchValue(value) {
+  return String(value || '').trim().toLowerCase()
+}
+
+
+function getReadableErrorMessage(value) {
+  if (!value) {
+    return 'Something went wrong'
+  }
+
+  if (typeof value === 'string') {
+    return value
+  }
+
+  if (Array.isArray(value)) {
+    const messages = value
+      .map((item) => getReadableErrorMessage(item))
+      .filter(Boolean)
+
+    return messages.length > 0
+      ? messages.join(', ')
+      : 'Something went wrong'
+  }
+
+  if (typeof value === 'object') {
+    if (value.detail !== undefined) {
+      return getReadableErrorMessage(value.detail)
+    }
+
+    if (value.message !== undefined) {
+      return getReadableErrorMessage(value.message)
+    }
+
+    if (value.msg !== undefined) {
+      return getReadableErrorMessage(value.msg)
+    }
+
+    if (value.error !== undefined) {
+      return getReadableErrorMessage(value.error)
+    }
+
+    try {
+      const serialized = JSON.stringify(value)
+
+      return serialized || 'Something went wrong'
+    } catch {
+      return 'Something went wrong'
+    }
+  }
+
+  return String(value)
+}
+
+
+function getMatchPriority(employee, normalizedSearch) {
+  const employeeCode = normalizeSearchValue(employee.employee_code)
+  const employeeName = normalizeSearchValue(employee.name)
+
+  if (employeeCode === normalizedSearch) {
+    return 0
+  }
+
+  if (employeeName === normalizedSearch) {
+    return 1
+  }
+
+  if (employeeCode.startsWith(normalizedSearch)) {
+    return 2
+  }
+
+  if (employeeName.startsWith(normalizedSearch)) {
+    return 3
+  }
+
+  if (
+    employeeCode.includes(normalizedSearch) ||
+    employeeName.includes(normalizedSearch)
+  ) {
+    return 4
+  }
+
+  return 5
+}
+
+
+function sortReleaseEmployees(employees, searchText) {
+  const normalizedSearch = normalizeSearchValue(searchText)
+
+  return [...employees].sort((left, right) => {
+    const leftPriority = getMatchPriority(left, normalizedSearch)
+    const rightPriority = getMatchPriority(right, normalizedSearch)
+
+    if (leftPriority !== rightPriority) {
+      return leftPriority - rightPriority
+    }
+
+    const nameComparison = left.name.localeCompare(right.name)
+
+    if (nameComparison !== 0) {
+      return nameComparison
+    }
+
+    return left.employee_code.localeCompare(right.employee_code)
+  })
+}
+
+
+async function requestJson(path, options = {}) {
+  const response = await fetch(
+    `${API_BASE_URL}${path}`,
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.headers || {}),
+      },
+      ...options,
+    }
+  )
+
+  const contentType = response.headers.get('content-type') || ''
+  const body = contentType.includes('application/json')
+    ? await response.json().catch(() => null)
+    : await response.text().catch(() => null)
+
+  if (!response.ok) {
+    const detail =
+      body && typeof body === 'object' && 'detail' in body
+        ? body.detail
+        : body
+
+    throw new Error(getReadableErrorMessage(detail))
+  }
+
+  return body
 }
 
 
@@ -123,7 +272,9 @@ export default function AllocationPage() {
 
 
   useEffect(() => {
-    loadData()
+    void (async () => {
+      await loadData()
+    })()
   }, [])
 
 
@@ -141,19 +292,67 @@ export default function AllocationPage() {
     try {
       setReleaseSearching(true)
 
-      const response = await fetchEmployees({
-        status: 'active',
-        has_active_seat: true,
-        search: value,
-        page: 1,
-        page_size: 100,
-      })
+      const response = await requestJson(
+        `/search?q=${encodeURIComponent(value)}`
+      )
 
-      setReleaseEmployees(extractItems(response))
+      const activeEmployees = []
+      const seenEmployeeIds = new Set()
+      const normalizedSearch = normalizeSearchValue(value)
+
+      for (const allocation of extractAllocations(response)) {
+        if (
+          String(
+            allocation?.status ?? allocation?.allocation_status ?? ''
+          ).toLowerCase() !== 'active'
+        ) {
+          continue
+        }
+
+        const employeeId = allocation?.employee_id ?? allocation?.employee?.id
+        const employeeName = allocation?.employee_name ?? allocation?.employee?.name ?? ''
+        const employeeCode = allocation?.employee_code ?? allocation?.employee?.employee_code ?? ''
+        const seatId = allocation?.seat_id ?? allocation?.seat?.id
+
+        if (!employeeId || !seatId) {
+          continue
+        }
+
+        if (
+          !normalizeSearchValue(employeeName).includes(normalizedSearch) &&
+          !normalizeSearchValue(employeeCode).includes(normalizedSearch)
+        ) {
+          continue
+        }
+
+        if (seenEmployeeIds.has(employeeId)) {
+          continue
+        }
+
+        seenEmployeeIds.add(employeeId)
+        activeEmployees.push({
+          id: employeeId,
+          name: employeeName,
+          employee_code: employeeCode,
+          seat_id: seatId,
+        })
+      }
+
+      const sortedEmployees = sortReleaseEmployees(activeEmployees, value).slice(0, 5)
+
+      setReleaseEmployees(sortedEmployees)
+
+      if (sortedEmployees.length === 1) {
+        setReleaseEmployeeId(String(sortedEmployees[0].id))
+      }
+
+      if (sortedEmployees.length === 0) {
+        setReleaseError('No employee with an active seat found.')
+      }
 
     } catch (err) {
       setReleaseEmployees([])
-      setReleaseError(getErrorMessage(err))
+      setReleaseError(getReadableErrorMessage(err))
 
     } finally {
       setReleaseSearching(false)
@@ -284,16 +483,27 @@ export default function AllocationPage() {
       return
     }
 
+    const selectedEmployee = releaseEmployees.find(
+      (employee) => String(employee.id) === String(releaseEmployeeId)
+    )
+
+    if (!selectedEmployee?.seat_id) {
+      setReleaseError('No employee with an active seat found.')
+      return
+    }
+
     try {
       setSubmitting(true)
 
-      const response = await releaseSeat({
-        employee_id: Number(releaseEmployeeId),
+      const response = await requestJson('/seats/release', {
+        method: 'POST',
+        body: JSON.stringify({
+          seat_id: Number(selectedEmployee.seat_id),
+        }),
       })
 
       setConfirmation(
-        response?.message ||
-        'Seat released successfully'
+        response?.message || 'Seat released'
       )
 
       setReleaseModalOpen(false)
@@ -305,7 +515,7 @@ export default function AllocationPage() {
       await loadData()
 
     } catch (err) {
-      setReleaseError(getErrorMessage(err))
+      setReleaseError(getReadableErrorMessage(err))
 
     } finally {
       setSubmitting(false)

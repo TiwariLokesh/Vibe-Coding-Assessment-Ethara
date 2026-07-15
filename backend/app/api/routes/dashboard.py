@@ -24,18 +24,18 @@ def dashboard_summary(db: Session = Depends(get_db)):
 def project_utilization(db: Session = Depends(get_db)):
     service = DashboardService(db)
     rows = service.project_utilization()
-    return [{"project_id": project_id, "project": project_name, "allocations": count} for project_id, project_name, count in rows]
+    return [{"name": project_name, "count": count} for _, project_name, count in rows]
 
 
 @router.get("/floor-utilization")
 def floor_utilization(db: Session = Depends(get_db)):
     service = DashboardService(db)
     rows = service.floor_utilization()
-    return [{"floor": floor, "seats": count} for floor, count in rows]
+    return [{"name": floor, "count": int(count or 0)} for floor, count in rows]
 
 
 @router.get("/zone-utilization")
 def zone_utilization(db: Session = Depends(get_db)):
     service = DashboardService(db)
     rows = service.zone_utilization()
-    return [{"zone": zone, "seats": count} for zone, count in rows]
+    return [{"name": zone, "count": int(count or 0)} for zone, count in rows]

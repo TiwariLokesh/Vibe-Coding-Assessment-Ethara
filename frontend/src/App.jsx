@@ -6,6 +6,7 @@ import ProjectsPage from './pages/ProjectsPage'
 import SeatsPage from './pages/SeatsPage'
 import AllocationPage from './pages/AllocationPage'
 import SearchPage from './pages/SearchPage'
+import AiAssistantPage from './pages/AiAssistantPage'
 import NotFoundPage from './pages/NotFoundPage'
 
 export default function App() {
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="/seats" element={<SeatsPage />} />
         <Route path="/allocation" element={<AllocationPage />} />
         <Route path="/search" element={<SearchPage />} />
+        <Route path="/ai" element={<AiAssistantPage />} />
         <Route path="/missing" element={<NotFoundPage />} />
         <Route path="*" element={<Navigate to="/missing" replace />} />
       </Route>

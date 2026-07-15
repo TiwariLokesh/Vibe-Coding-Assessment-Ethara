@@ -29,3 +29,14 @@ export async function deleteSeat(seatId) {
   const response = await http.delete(`/seats/${seatId}`)
   return response.data
 }
+
+export async function uploadSeatsCsv(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await http.post('/seats/upload-csv', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+  return response.data
+}

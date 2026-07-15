@@ -24,3 +24,14 @@ export async function deleteEmployee(employeeId) {
   const response = await http.delete(`/employees/${employeeId}`)
   return response.data
 }
+
+export async function uploadEmployeesCsv(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await http.post('/employees/upload-csv', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+  return response.data
+}

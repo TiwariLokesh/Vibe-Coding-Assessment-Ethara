@@ -13,10 +13,13 @@ if settings.database_url.startswith("sqlite"):
 
 engine = create_engine(
     settings.database_url,
+    future=True,
     pool_pre_ping=True,
-    pool_recycle=300,
-    pool_size=5,
-    max_overflow=10,
+    pool_recycle=180,
+    pool_size=2,
+    max_overflow=0,
+    pool_timeout=30,
+    pool_reset_on_return="rollback",
     **engine_kwargs,
 )
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, expire_on_commit=False)

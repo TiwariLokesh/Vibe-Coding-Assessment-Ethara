@@ -1,2 +1,18 @@
 __pycache__/
 *.pyc
+
+# Environment
+.env
+
+# SQLite
+*.db
+
+# Python virtual environments
+.venv/
+venv/
+
+# Node
+node_modules/
+
+# Build output
+dist/

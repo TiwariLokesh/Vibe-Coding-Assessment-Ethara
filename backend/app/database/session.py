@@ -13,7 +13,6 @@ if settings.database_url.startswith("sqlite"):
 
 engine = create_engine(
     settings.database_url,
-    future=True,
     pool_pre_ping=True,
     pool_recycle=180,
     pool_size=2,

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { ChevronRight, LayoutDashboard, Search, Users, BriefcaseBusiness, MapPinned, Workflow, BarChart3, Menu, X, Sparkles } from 'lucide-react'
+import { ChevronRight, LayoutDashboard, Search, Users, BriefcaseBusiness, MapPinned, Workflow, Menu, X, Sparkles } from 'lucide-react'
 
 const navigation = [
   { label: 'Dashboard', to: '/', icon: LayoutDashboard },
@@ -10,7 +10,6 @@ const navigation = [
   { label: 'Seat Allocation', to: '/allocation', icon: Workflow },
   { label: 'Search', to: '/search', icon: Search },
   { label: 'AI Assistant', to: '/ai', icon: Sparkles },
-  { label: '404', to: '/missing', icon: BarChart3 },
 ]
 
 function buildBreadcrumbs(pathname) {

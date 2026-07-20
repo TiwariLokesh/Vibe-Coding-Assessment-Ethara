@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import {Route, Routes } from 'react-router-dom'
 import AppShell from './components/layout/AppShell'
 import DashboardPage from './pages/DashboardPage'
 import EmployeesPage from './pages/EmployeesPage'
@@ -20,8 +20,7 @@ export default function App() {
         <Route path="/allocation" element={<AllocationPage />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/ai" element={<AiAssistantPage />} />
-        <Route path="/missing" element={<NotFoundPage />} />
-        <Route path="*" element={<Navigate to="/missing" replace />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
   )

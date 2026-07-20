@@ -5,6 +5,7 @@ from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from app.models.enums import EmployeeStatus
+from app.schemas.project import ProjectRead
 
 
 class EmployeeBase(BaseModel):
@@ -35,6 +36,7 @@ class EmployeeUpdate(BaseModel):
 
 class EmployeeRead(EmployeeBase):
     id: int
+    project: ProjectRead
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)
